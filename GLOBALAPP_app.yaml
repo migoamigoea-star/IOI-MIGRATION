@@ -1,0 +1,678 @@
+# =============================================================================
+# IOI Global Portal Screen — Power Apps Canvas App YAML Source Definition
+# Form Code  : GLOBALAPP
+# Version    : 1.0
+# Date       : 2026-04-21
+# Description: Single Canvas App acting as the unified portal entry point for
+#              all IOI migrated Microsoft 365 applications. Contains two screens:
+#              GLOBAL_Welcome  — branded landing screen with announcements
+#              GLOBAL_DeptSelection — searchable, role-filtered department tiles
+# =============================================================================
+
+app:
+  name: IOI Global Portal Screen
+  formCode: GLOBALAPP
+  version: "1.0"
+  description: >
+    Global portal entry point for all IOI migrated Canvas Apps.
+    Provides a Welcome Screen and a Department Selection Screen.
+
+  # ---------------------------------------------------------------------------
+  # DATA SOURCES
+  # All connections reference SharePoint lists on the ioi-portal site.
+  # Site URL is loaded at runtime from Config_AppSettings (EnvironmentTag key).
+  # ---------------------------------------------------------------------------
+  dataSources:
+    - name: Config_AppSettings
+      type: SharePointList
+      site: "#{PortalSiteURL}#"          # resolved at runtime from environment config
+      list: Config_AppSettings
+
+    - name: Config_Departments
+      type: SharePointList
+      site: "#{PortalSiteURL}#"
+      list: Config_Departments
+
+    - name: Config_Announcements
+      type: SharePointList
+      site: "#{PortalSiteURL}#"
+      list: Config_Announcements
+
+  # ---------------------------------------------------------------------------
+  # APP-LEVEL VARIABLES (set in OnStart)
+  # ---------------------------------------------------------------------------
+  variables:
+    - name: varCurrentUser
+      type: Record
+      description: "Cached result of User() — FullName, Email"
+
+    - name: varEnvTag
+      type: Text
+      description: "DEV / TEST / PROD — loaded from Config_AppSettings"
+
+    - name: varPortalLogoURL
+      type: Text
+      description: "Company logo URL — loaded from Config_AppSettings"
+
+  # ---------------------------------------------------------------------------
+  # APP-LEVEL COLLECTIONS (populated in OnStart)
+  # ---------------------------------------------------------------------------
+  collections:
+    - name: colDepartments
+      description: "Active department tiles from Config_Departments"
+
+    - name: colAnnouncements
+      description: "Active, in-range announcements from Config_Announcements"
+
+    - name: colUserGroups
+      description: "SP groups the current user belongs to (for tile filtering)"
+
+  # ---------------------------------------------------------------------------
+  # APP OnStart FORMULA
+  # ---------------------------------------------------------------------------
+  onStart: |
+    // 1. Cache current user
+    Set(varCurrentUser, User());
+
+    // 2. Load environment settings
+    Set(varEnvTag,        LookUp(Config_AppSettings, Title = "EnvironmentTag",  Value));
+    Set(varPortalLogoURL, LookUp(Config_AppSettings, Title = "PortalLogoURL",   Value));
+
+    // 3. Load active department tiles
+    ClearCollect(
+        colDepartments,
+        Filter(Config_Departments, IsActive = true)
+    );
+
+    // 4. Load active announcements within date range, highest severity first
+    ClearCollect(
+        colAnnouncements,
+        SortByColumns(
+            Filter(
+                Config_Announcements,
+                IsActive = true &&
+                StartDate <= Today() &&
+                EndDate >= Today()
+            ),
+            "Severity",
+            Descending
+        )
+    );
+
+  # ===========================================================================
+  # SCREENS
+  # ===========================================================================
+  screens:
+
+    # =========================================================================
+    # SCREEN 1 — GLOBAL_Welcome
+    # =========================================================================
+    - name: GLOBAL_Welcome
+      displayName: Welcome
+      description: >
+        Branded landing screen. Shows company logo, personalised greeting,
+        today's date, announcements banner, and an Enter Portal button.
+      fill: "RGBA(245, 248, 255, 1)"
+
+      controls:
+
+        # -- Company Logo ------------------------------------------------------
+        - name: imgLogo
+          type: Image
+          x: 0
+          y: 40
+          width: App.Width
+          height: 120
+          properties:
+            Image: varPortalLogoURL
+            ImagePosition: ImagePosition.Fit
+            AccessibleLabel: '"IOI company logo"'
+
+        # -- Personalised Greeting --------------------------------------------
+        - name: lblGreeting
+          type: Label
+          x: 40
+          y: 180
+          width: App.Width - 80
+          height: 60
+          properties:
+            Text: '"Welcome, " & First(Split(varCurrentUser.FullName, " ")).Value'
+            Size: 28
+            FontWeight: FontWeight.Bold
+            Color: "RGBA(0, 56, 117, 1)"
+            Align: Align.Center
+            AccessibleLabel: '"Personalised greeting"'
+
+        # -- Today's Date Label -----------------------------------------------
+        - name: lblDate
+          type: Label
+          x: 40
+          y: 248
+          width: App.Width - 80
+          height: 36
+          properties:
+            Text: 'Text(Today(), "[$-en-US]MMMM D, YYYY")'
+            Size: 16
+            Color: "RGBA(100, 100, 100, 1)"
+            Align: Align.Center
+            AccessibleLabel: '"Today''s date"'
+
+        # -- Announcement Banner Container ------------------------------------
+        - name: conAnnouncement
+          type: Container
+          x: 40
+          y: 304
+          width: App.Width - 80
+          height: 80
+          properties:
+            Visible: "!IsEmpty(colAnnouncements)"
+            Fill: >
+              Switch(
+                  First(colAnnouncements).Severity,
+                  "Critical", RGBA(255,  80,  80, 0.18),
+                  "Warning",  RGBA(255, 165,   0, 0.18),
+                  RGBA(  0, 120, 212, 0.12)
+              )
+            BorderRadius: 8
+            AccessibleLabel: '"Announcement banner"'
+
+          children:
+            # Announcement Headline
+            - name: lblAnnouncementHd
+              type: Label
+              x: 12
+              y: 8
+              width: conAnnouncement.Width - 24
+              height: 28
+              properties:
+                Text: "First(colAnnouncements).Title"
+                Size: 14
+                FontWeight: FontWeight.Bold
+                Color: "RGBA(50, 50, 50, 1)"
+                AccessibleLabel: '"Announcement headline"'
+
+            # Announcement Body
+            - name: lblAnnouncementBd
+              type: Label
+              x: 12
+              y: 40
+              width: conAnnouncement.Width - 24
+              height: 32
+              properties:
+                Text: "First(colAnnouncements).Body"
+                Size: 12
+                Color: "RGBA(80, 80, 80, 1)"
+                Overflow: Overflow.Scroll
+                AccessibleLabel: '"Announcement body text"'
+
+        # -- Critical Announcement Modal Overlay ------------------------------
+        - name: ovlCritical
+          type: Container
+          x: 0
+          y: 0
+          width: App.Width
+          height: App.Height
+          properties:
+            Visible: 'CountIf(colAnnouncements, Severity = "Critical") > 0 && !varCriticalAcknowledged'
+            Fill: "RGBA(0, 0, 0, 0.55)"
+            ZIndex: 100
+            AccessibleLabel: '"Critical announcement modal"'
+
+          children:
+            - name: conCriticalCard
+              type: Container
+              x: "(App.Width - 480) / 2"
+              y: "(App.Height - 260) / 2"
+              width: 480
+              height: 260
+              properties:
+                Fill: "RGBA(255, 255, 255, 1)"
+                BorderRadius: 12
+                DropShadow: DropShadow.ExtraHeavy
+
+              children:
+                - name: lblCriticalTitle
+                  type: Label
+                  x: 24
+                  y: 24
+                  width: 432
+                  height: 32
+                  properties:
+                    Text: '"⚠ Critical Announcement"'
+                    Size: 18
+                    FontWeight: FontWeight.Bold
+                    Color: "RGBA(200, 0, 0, 1)"
+
+                - name: lblCriticalBody
+                  type: Label
+                  x: 24
+                  y: 64
+                  width: 432
+                  height: 120
+                  properties:
+                    Text: "First(Filter(colAnnouncements, Severity = \"Critical\")).Title & \": \" & First(Filter(colAnnouncements, Severity = \"Critical\")).Body"
+                    Size: 13
+                    Color: "RGBA(50, 50, 50, 1)"
+                    Overflow: Overflow.Scroll
+
+                - name: btnAcknowledge
+                  type: Button
+                  x: "(480 - 160) / 2"
+                  y: 204
+                  width: 160
+                  height: 40
+                  properties:
+                    Text: '"I Acknowledge"'
+                    Fill: "RGBA(200, 0, 0, 1)"
+                    Color: "RGBA(255, 255, 255, 1)"
+                    BorderRadius: 6
+                    OnSelect: "Set(varCriticalAcknowledged, true)"
+                    AccessibleLabel: '"Acknowledge critical announcement"'
+
+        # -- Enter Portal Button ----------------------------------------------
+        - name: btnEnterPortal
+          type: Button
+          x: "(App.Width - 220) / 2"
+          y: App.Height - 160
+          width: 220
+          height: 52
+          properties:
+            Text: '"Enter Portal"'
+            Fill: "RGBA(0, 78, 163, 1)"
+            Color: "RGBA(255, 255, 255, 1)"
+            Size: 16
+            FontWeight: FontWeight.Bold
+            BorderRadius: 8
+            HoverFill: "RGBA(0, 56, 117, 1)"
+            OnSelect: "Navigate(GLOBAL_DeptSelection, ScreenTransition.Slide)"
+            AccessibleLabel: '"Enter the IOI portal — navigate to Department Selection"'
+            TabIndex: 1
+
+        # -- Footer Label -----------------------------------------------------
+        - name: lblFooter
+          type: Label
+          x: 0
+          y: App.Height - 36
+          width: App.Width
+          height: 30
+          properties:
+            Text: '"IOI Portal  v1.0  |  " & varEnvTag'
+            Size: 11
+            Color: "RGBA(160, 160, 160, 1)"
+            Align: Align.Center
+            AccessibleLabel: '"App version and environment"'
+
+    # =========================================================================
+    # SCREEN 2 — GLOBAL_DeptSelection
+    # =========================================================================
+    - name: GLOBAL_DeptSelection
+      displayName: Department Selection
+      description: >
+        Searchable, role-filtered tile grid. Displays all active department
+        tiles the current user is authorised to see. Tapping a tile launches
+        the corresponding department Canvas App.
+      fill: "RGBA(245, 248, 255, 1)"
+
+      controls:
+
+        # -- Header Container -------------------------------------------------
+        - name: conHeader
+          type: Container
+          x: 0
+          y: 0
+          width: App.Width
+          height: 64
+          properties:
+            Fill: "RGBA(0, 78, 163, 1)"
+
+          children:
+            # Small Logo
+            - name: imgLogoSmall
+              type: Image
+              x: 16
+              y: 8
+              width: 120
+              height: 48
+              properties:
+                Image: varPortalLogoURL
+                ImagePosition: ImagePosition.Fit
+                AccessibleLabel: '"IOI company logo"'
+
+            # User Name
+            - name: lblUserName
+              type: Label
+              x: App.Width - 260
+              y: 16
+              width: 200
+              height: 32
+              properties:
+                Text: "varCurrentUser.FullName"
+                Size: 13
+                Color: "RGBA(255, 255, 255, 1)"
+                Align: Align.Right
+                AccessibleLabel: '"Logged-in user name"'
+
+            # Back Button
+            - name: btnBack
+              type: Button
+              x: App.Width - 56
+              y: 12
+              width: 40
+              height: 40
+              properties:
+                Text: '"←"'
+                Fill: "RGBA(0, 0, 0, 0)"
+                Color: "RGBA(255, 255, 255, 1)"
+                Size: 20
+                BorderColor: "RGBA(255, 255, 255, 0.4)"
+                BorderRadius: 6
+                OnSelect: "Navigate(GLOBAL_Welcome, ScreenTransition.Back)"
+                AccessibleLabel: '"Go back to Welcome screen"'
+                TabIndex: 10
+
+        # -- Page Title -------------------------------------------------------
+        - name: lblPageTitle
+          type: Label
+          x: 40
+          y: 76
+          width: App.Width - 80
+          height: 40
+          properties:
+            Text: '"Select a Department"'
+            Size: 22
+            FontWeight: FontWeight.Bold
+            Color: "RGBA(0, 56, 117, 1)"
+            AccessibleLabel: '"Page title: Select a Department"'
+
+        # -- Search Box -------------------------------------------------------
+        - name: txtDeptSearch
+          type: TextInput
+          x: 40
+          y: 126
+          width: App.Width - 80
+          height: 44
+          properties:
+            PlaceholderText: '"Search department…"'
+            BorderRadius: 8
+            BorderColor: "RGBA(180, 180, 180, 1)"
+            FocusedBorderColor: "RGBA(0, 78, 163, 1)"
+            Size: 14
+            AccessibleLabel: '"Search departments"'
+            TabIndex: 2
+
+        # -- Department Tile Gallery ------------------------------------------
+        - name: galDeptTiles
+          type: Gallery
+          x: 40
+          y: 184
+          width: App.Width - 80
+          height: App.Height - 300
+          properties:
+            Layout: Layout.HorizontalWrap
+            WrapCount: 3
+            TemplatePadding: 12
+            TemplateSize: 160
+            Items: |
+              Filter(
+                  colDepartments,
+                  IsBlank(txtDeptSearch.Text) ||
+                  StartsWith(DeptCode, txtDeptSearch.Text) ||
+                  StartsWith(Title,    txtDeptSearch.Text)
+              )
+            AccessibleLabel: '"Department tiles gallery"'
+            TabIndex: 3
+
+          templateControls:
+            # Tile Card Background
+            - name: tileCard
+              type: Rectangle
+              x: 0
+              y: 0
+              width: galDeptTiles.TemplateWidth
+              height: 150
+              properties:
+                Fill: >
+                  If(
+                      IsBlank(ThisItem.DeptColor),
+                      RGBA(0, 78, 163, 1),
+                      ColorValue(ThisItem.DeptColor)
+                  )
+                BorderRadius: 12
+                DropShadow: DropShadow.Light
+                OnSelect: |
+                  If(
+                      StartsWith(ThisItem.AppURL, "https://"),
+                      Launch(ThisItem.AppURL),
+                      Navigate(GLOBAL_Welcome, ScreenTransition.Slide)
+                  )
+                HoverFill: >
+                  If(
+                      IsBlank(ThisItem.DeptColor),
+                      RGBA(0, 56, 117, 1),
+                      ColorFade(ColorValue(ThisItem.DeptColor), -0.15)
+                  )
+                AccessibleLabel: '"Department tile: " & ThisItem.Title'
+                Cursor: Cursor.Hand
+
+            # Tile Icon
+            - name: tileIcon
+              type: Image
+              x: "(galDeptTiles.TemplateWidth - 48) / 2"
+              y: 20
+              width: 48
+              height: 48
+              properties:
+                Image: >
+                  If(
+                      StartsWith(ThisItem.DeptIcon, "https://"),
+                      ThisItem.DeptIcon,
+                      SampleImage        // fallback if icon URL is blank
+                  )
+                ImagePosition: ImagePosition.Fit
+                AccessibleLabel: '"Department icon"'
+
+            # Department Code Label
+            - name: tileDeptCode
+              type: Label
+              x: 8
+              y: 76
+              width: galDeptTiles.TemplateWidth - 16
+              height: 24
+              properties:
+                Text: "ThisItem.DeptCode"
+                Size: 13
+                FontWeight: FontWeight.Bold
+                Color: "RGBA(255, 255, 255, 1)"
+                Align: Align.Center
+                AccessibleLabel: '"Department code: " & ThisItem.DeptCode'
+
+            # Department Name Label
+            - name: tileDeptName
+              type: Label
+              x: 8
+              y: 104
+              width: galDeptTiles.TemplateWidth - 16
+              height: 38
+              properties:
+                Text: "ThisItem.Title"
+                Size: 11
+                Color: "RGBA(230, 230, 230, 1)"
+                Align: Align.Center
+                Overflow: Overflow.Scroll
+                AccessibleLabel: '"Department name: " & ThisItem.Title'
+
+        # -- No-Results Label --------------------------------------------------
+        - name: lblNoResults
+          type: Label
+          x: 40
+          y: 184
+          width: App.Width - 80
+          height: 60
+          properties:
+            Text: '"No departments found. Try a different search term."'
+            Visible: "IsEmpty(galDeptTiles.AllItems)"
+            Size: 14
+            Color: "RGBA(140, 140, 140, 1)"
+            Align: Align.Center
+            AccessibleLabel: '"No departments found message"'
+
+        # -- Footer Label ------------------------------------------------------
+        - name: lblFooter
+          type: Label
+          x: 0
+          y: App.Height - 36
+          width: App.Width
+          height: 30
+          properties:
+            Text: '"IOI Portal  v1.0  |  " & varEnvTag'
+            Size: 11
+            Color: "RGBA(160, 160, 160, 1)"
+            Align: Align.Center
+            AccessibleLabel: '"App version and environment"'
+
+# =============================================================================
+# SHAREPOINT LIST SCHEMAS (reference — provision separately)
+# =============================================================================
+sharepointLists:
+
+  - listName: Config_Departments
+    siteUrl: "#{PortalSiteURL}#"
+    columns:
+      - internalName: Title
+        displayName: Department Name
+        type: Text
+        required: true
+
+      - internalName: DeptCode
+        displayName: Dept Code
+        type: Text
+        required: true
+
+      - internalName: DeptIcon
+        displayName: Icon Name / URL
+        type: Text
+        required: false
+
+      - internalName: DeptColor
+        displayName: Tile Colour
+        type: Text
+        required: false
+        notes: "Hex colour string, e.g. #0078D4"
+
+      - internalName: AppURL
+        displayName: App Launch URL
+        type: Text
+        required: true
+
+      - internalName: IsActive
+        displayName: Is Active
+        type: Boolean
+        required: true
+        defaultValue: true
+
+      - internalName: SortOrder
+        displayName: Sort Order
+        type: Number
+        required: false
+
+      - internalName: AllowedSPGroup
+        displayName: Allowed SP Group
+        type: Text
+        required: false
+        notes: "If blank, tile is visible to all authenticated users"
+
+      - internalName: SiteScope
+        displayName: Site Scope
+        type: Choice
+        required: false
+        choices:
+          - All
+          - PRAI
+
+  - listName: Config_Announcements
+    siteUrl: "#{PortalSiteURL}#"
+    columns:
+      - internalName: Title
+        displayName: Headline
+        type: Text
+        required: true
+
+      - internalName: Body
+        displayName: Body Text
+        type: Note
+        required: false
+
+      - internalName: StartDate
+        displayName: Start Date
+        type: DateTime
+        required: true
+
+      - internalName: EndDate
+        displayName: End Date
+        type: DateTime
+        required: true
+
+      - internalName: IsActive
+        displayName: Is Active
+        type: Boolean
+        required: true
+        defaultValue: true
+
+      - internalName: Severity
+        displayName: Severity
+        type: Choice
+        required: false
+        choices:
+          - Info
+          - Warning
+          - Critical
+        defaultValue: Info
+
+# =============================================================================
+# ENVIRONMENT CONFIGURATION (keys expected in Config_AppSettings list)
+# =============================================================================
+environmentConfig:
+  keys:
+    - key: EnvironmentTag
+      description: "DEV | TEST | PROD — controls footer badge and isolation"
+      exampleValues:
+        DEV: DEV
+        TEST: TEST
+        PROD: PROD
+
+    - key: PortalLogoURL
+      description: "HTTPS URL of the company logo image"
+      exampleValues:
+        DEV: "https://ioioi.sharepoint.com/sites/ioi-portal-dev/SiteAssets/logo.png"
+        TEST: "https://ioioi.sharepoint.com/sites/ioi-portal-test/SiteAssets/logo.png"
+        PROD: "https://ioioi.sharepoint.com/sites/ioi-portal/SiteAssets/logo.png"
+
+    - key: PortalSiteURL
+      description: "Root URL of the portal SharePoint site"
+      exampleValues:
+        DEV: "https://ioioi.sharepoint.com/sites/ioi-portal-dev"
+        TEST: "https://ioioi.sharepoint.com/sites/ioi-portal-test"
+        PROD: "https://ioioi.sharepoint.com/sites/ioi-portal"
+
+    - key: PortalAdminGroup
+      description: "SharePoint group with full control over Config lists"
+      exampleValues:
+        DEV: IOI-Portal-Admins-DEV
+        TEST: IOI-Portal-Admins-TEST
+        PROD: IOI-Portal-Admins
+
+# =============================================================================
+# METADATA
+# =============================================================================
+metadata:
+  architect: "GitHub Copilot (Architect Agent)"
+  blueprintRef: GLOBALAPP_blueprint.md
+  userStoryRef: user_stories/GLOBALAPP_user_story.md
+  createdDate: "2026-04-21"
+  status: BLUEPRINT_DRAFT
+  notes: >
+    This YAML is a Power Apps Canvas App source-definition artefact.
+    Import into Power Apps Studio via the "Open > Import from YAML" feature
+    (Power Apps YAML source format — pa.yaml convention).
+    All #{...}# tokens are environment placeholders replaced during deployment
+    by the ALM pipeline using Config_AppSettings values.
