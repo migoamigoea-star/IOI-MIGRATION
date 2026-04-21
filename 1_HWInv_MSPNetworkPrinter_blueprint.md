@@ -28,15 +28,43 @@ Detailed field inventory and mapping source:
 
 ## 3. Workflow
 
-Baseline workflow stages:
-1. Draft submission by initiator
-2. Department/role validation
-3. Finalization and active record management
+### Stage Flow Diagram
 
-Power Automate flow set:
-- 1_HWInv_MSPNetworkPrinter_OnSubmit
-- 1_HWInv_MSPNetworkPrinter_OnReview
-- 1_HWInv_MSPNetworkPrinter_OnComplete
+```
+[Stage 1: Asset Registration — Draft]
+         │ submit
+         ▼
+[Stage 2: Validation — IT Asset Admin Review]
+         │ approve / return
+         ├─→ Approved: Stage 3
+         └─→ Returned: Stage 1
+         ▼
+[Stage 3: Active Inventory]
+```
+
+### Stage Matrix
+
+| Stage # | Stage Name         | Trigger                         | Actor            | Actions                                                             | Next Stage    | Notifications                     |
+| ------- | ------------------ | ------------------------------- | ---------------- | ------------------------------------------------------------------- | ------------- | --------------------------------- |
+| 1       | Asset Registration | New registration started        | IT Technician    | Populate printer model, IP, serial number, department, location     | 2             | IT Asset Admin                    |
+| 2       | Validation         | Record submitted for review     | IT Asset Admin   | Validate ownership, IP uniqueness, data quality; approve or return  | 3 or 1        | Requestor/Initiator on return      |
+| 3       | Active Inventory   | Record approved                 | System (auto)    | Finalise active inventory state; expose for reporting               | —             | Reporting channels only           |
+
+### Trigger-Condition Matrix
+
+| Stage      | Trigger Condition                           | Required Checks                                          | Advance Path               | Return/Reject Path                       |
+| ---------- | ------------------------------------------- | -------------------------------------------------------- | -------------------------- | ---------------------------------------- |
+| Capture    | Item created with FormType=1_HWInv_MSPNetworkPrinter | model, IP, SerialNumber, department populated   | Route to validation queue  | Missing-fields notice to initiator       |
+| Validation | Item updated by IT Asset Admin reviewer     | IP uniqueness check; serial number consistency           | Mark approved; publish active record | Flag duplicate/inconsistent; return to initiator |
+| Active     | Status changed to active                    | Data-quality checks pass                                 | Keep active baseline       | N/A                                      |
+
+### Power Automate Flows
+
+| Flow Name                               | Trigger                          | Key Actions                                                                               |
+| --------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------- |
+| `1_HWInv_MSPNetworkPrinter_OnSubmit`    | Item created                     | Validate required fields; set Status=Submitted; stamp SubmittedDate; notify IT Asset Admin|
+| `1_HWInv_MSPNetworkPrinter_OnReview`    | Status updated to UnderReview    | Route to IT Asset Admin; stamp ReviewDate; notify reviewer                                |
+| `1_HWInv_MSPNetworkPrinter_OnComplete`  | Status updated to Approved       | Set Status=Active; stamp CompletedDate; lock record; update inventory register            |
 
 ## 4. Screen Set
 

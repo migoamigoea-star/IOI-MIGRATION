@@ -140,11 +140,20 @@ This form migrates to Microsoft 365 as a Power Apps canvas app backed by `MainDB
 
 **Complexity:** 3-stage sequential (no formal approval gate — HR internal process)
 
-| Stage | Name                       | Actor                    | Action                                                         |
-| ----- | -------------------------- | ------------------------ | -------------------------------------------------------------- |
-| 1     | Initiation                 | HR Business Partner      | Select employee, fill profile, assign PIC/HOD, submit          |
-| 2     | Readiness Analysis + IDP   | PIC / HOD (Editor1)      | Complete strengths, competency ratings, IDP activities, submit |
-| 3     | Endorsement + Finalisation | HR Admin / HOD (Editor2) | Review completed IDP, endorse, mark Finalised                  |
+### Stage Flow Diagram
+
+```
+[Stage 1: Initiation — HR Business Partner]
+         │ submit
+         ▼
+[Stage 2: Readiness Analysis + IDP — PIC / HOD]
+         │ submit assessment
+         ▼
+[Stage 3: Endorsement + Finalisation — HR Admin / HOD]
+         │ endorse
+         ▼
+[Finalised]
+```
 
 **CurrentStatus transitions:**
 
@@ -152,11 +161,29 @@ This form migrates to Microsoft 365 as a Power Apps canvas app backed by `MainDB
 Initiation → Nomination/Readiness → IDP Review → Finalised
 ```
 
-**PA Flows:**
+### Stage Matrix
 
-- `TMPU_OnInitiate`: Generate INO, notify PIC
-- `TMPU_OnReadinessSubmit`: Notify HR Admin of completed assessment
-- `TMPU_OnEndorse`: Set CurrentStatus=Finalised, notify employee
+| Stage | Name                       | Trigger                        | Actor                    | Actions                                                         | Next Stage | Notifications                         |
+| ----- | -------------------------- | ------------------------------ | ------------------------ | --------------------------------------------------------------- | ---------- | ------------------------------------- |
+| 1     | Initiation                 | New TMPU item created          | HR Business Partner      | Select employee, fill profile, assign PIC/HOD, submit           | 2          | PIC / HOD notified to begin assessment|
+| 2     | Readiness Analysis + IDP   | Status=Nomination/Readiness    | PIC / HOD (Editor1)      | Complete strengths, competency ratings, IDP activities, submit  | 3          | HR Admin notified of completed assessment |
+| 3     | Endorsement + Finalisation | Status=IDP Review              | HR Admin / HOD (Editor2) | Review completed IDP, endorse, mark Finalised                   | Finalised  | Employee and HR BP notified of outcome |
+
+### Trigger-Condition Matrix
+
+| Stage            | Trigger Condition              | Required Checks                              | Advance Path                      | Return/Reject Path                      |
+| ---------------- | ------------------------------ | -------------------------------------------- | --------------------------------- | --------------------------------------- |
+| Initiation       | Item created with FormType=TMPU| FullName, EmpNo, PIC, DOB, Dept present      | Route to PIC for assessment       | Incomplete form returned to HR BP       |
+| Readiness / IDP  | Status=Nomination/Readiness    | All competency rows rated; IDP has 1+ entry  | Submit for HR Admin endorsement   | HR Admin returns with feedback to PIC   |
+| Endorsement      | Status=IDP Review              | Strengths, competencies, IDP all complete    | Set Status=Finalised              | Return to PIC for revision              |
+
+### Power Automate Flows
+
+| Flow Name                  | Trigger                            | Key Actions                                                                          |
+| -------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------ |
+| `TMPU_OnInitiate`          | Item created, FormType=TMPU        | Generate INO (`HR-TMP-YYMM-NNNN`); set Status=Initiation; stamp DateSubmitted; notify PIC |
+| `TMPU_OnReadinessSubmit`   | Status updated to IDP Review       | Stamp ReadinessSubmittedDate; notify HR Admin of completed assessment                |
+| `TMPU_OnEndorse`           | Status updated to Finalised        | Set CurrentStatus=Finalised; stamp EndorsedDate; notify Employee and HR BP           |
 
 ---
 
