@@ -1,0 +1,25 @@
+screen:
+  name: SII_New
+  purpose: New inclusion request
+  visibleTo:
+    - Requestor
+  navigation:
+    previous:
+      - SII_List
+    next:
+      - SII_View
+  workflowStages:
+    - Draft
+    - HOD
+    - Materials
+    - Finance
+    - ED
+    - Master Data Completion
+    - Closed
+  placeholders:
+    - section: Header
+      controls: []
+    - section: Content
+      controls: []
+    - section: Actions
+      controls: []

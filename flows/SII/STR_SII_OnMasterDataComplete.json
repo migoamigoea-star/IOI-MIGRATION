@@ -1,0 +1,8 @@
+{
+  "flowName": "STR_SII_OnMasterDataComplete",
+  "stage": "Complete",
+  "trigger": "All completion flags true",
+  "actions": "Set MaterialCode, PRCreated, CurrentStatus=Completed, IsLocked=Yes",
+  "sourceBlueprint": "SII",
+  "steps": []
+}

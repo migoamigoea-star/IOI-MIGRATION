@@ -1,0 +1,8 @@
+{
+  "flowName": "STR_SII_OnHODDecision",
+  "stage": "HOD Review",
+  "trigger": "`HODDecision` updated",
+  "actions": "Route to Materials or reject path",
+  "sourceBlueprint": "SII",
+  "steps": []
+}

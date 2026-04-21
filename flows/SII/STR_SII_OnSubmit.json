@@ -1,0 +1,8 @@
+{
+  "flowName": "STR_SII_OnSubmit",
+  "stage": "Submit",
+  "trigger": "Item created with `FormCode=SII`",
+  "actions": "Generate INO, set CurrentStatus=Submitted, stamp SubmittedBy/SubmittedDate",
+  "sourceBlueprint": "SII",
+  "steps": []
+}

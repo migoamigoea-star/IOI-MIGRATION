@@ -1,0 +1,27 @@
+screen:
+  name: SII_View
+  purpose: Read-only request details and approvals
+  visibleTo:
+    - Authorized users
+  navigation:
+    previous:
+      - SII_New
+    next:
+      - SII_Approval
+      - SII_Completion
+      - SII_Edit
+  workflowStages:
+    - Draft
+    - HOD
+    - Materials
+    - Finance
+    - ED
+    - Master Data Completion
+    - Closed
+  placeholders:
+    - section: Header
+      controls: []
+    - section: Content
+      controls: []
+    - section: Actions
+      controls: []

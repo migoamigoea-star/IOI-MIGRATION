@@ -1,0 +1,8 @@
+{
+  "flowName": "STR_SII_OnFinanceDecision",
+  "stage": "Finance Review",
+  "trigger": "`FinanceDecision` updated",
+  "actions": "Route to ED or reject path",
+  "sourceBlueprint": "SII",
+  "steps": []
+}

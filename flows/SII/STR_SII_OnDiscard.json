@@ -1,0 +1,8 @@
+{
+  "flowName": "STR_SII_OnDiscard",
+  "stage": "Discard",
+  "trigger": "`DiscardFlag=true`",
+  "actions": "Enforce reason, set CurrentStatus=Discarded, notify stakeholders",
+  "sourceBlueprint": "SII",
+  "steps": []
+}

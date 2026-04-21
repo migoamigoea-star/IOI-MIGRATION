@@ -1,0 +1,28 @@
+screen:
+  name: SII_Approval
+  purpose: Multi-stage review actions
+  visibleTo:
+    - HOD
+    - Materials
+    - Finance
+    - ED
+  navigation:
+    previous:
+      - SII_View
+    next:
+      - SII_List
+  workflowStages:
+    - Draft
+    - HOD
+    - Materials
+    - Finance
+    - ED
+    - Master Data Completion
+    - Closed
+  placeholders:
+    - section: Header
+      controls: []
+    - section: Content
+      controls: []
+    - section: Actions
+      controls: []

@@ -1,0 +1,8 @@
+{
+  "flowName": "STR_SII_OnMaterialsDecision",
+  "stage": "Materials Review",
+  "trigger": "`MaterialsDecision` updated",
+  "actions": "Route to Finance or reject path",
+  "sourceBlueprint": "SII",
+  "steps": []
+}

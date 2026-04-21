@@ -1,0 +1,25 @@
+screen:
+  name: SII_Completion
+  purpose: Master data completion and code issuance
+  visibleTo:
+    - Master Data Team
+  navigation:
+    previous:
+      - SII_View
+    next:
+      - SII_List
+  workflowStages:
+    - Draft
+    - HOD
+    - Materials
+    - Finance
+    - ED
+    - Master Data Completion
+    - Closed
+  placeholders:
+    - section: Header
+      controls: []
+    - section: Content
+      controls: []
+    - section: Actions
+      controls: []

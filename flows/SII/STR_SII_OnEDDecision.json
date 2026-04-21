@@ -1,0 +1,8 @@
+{
+  "flowName": "STR_SII_OnEDDecision",
+  "stage": "Executive Review",
+  "trigger": "`EDDecision` updated",
+  "actions": "Route to Master Data completion",
+  "sourceBlueprint": "SII",
+  "steps": []
+}

@@ -1,0 +1,28 @@
+screen:
+  name: SII_List
+  purpose: Search and filter SII requests
+  visibleTo:
+    - STR users
+    - reviewers
+  navigation:
+    previous:
+      - SII_Approval
+      - SII_Completion
+      - SII_Edit
+    next:
+      - SII_New
+  workflowStages:
+    - Draft
+    - HOD
+    - Materials
+    - Finance
+    - ED
+    - Master Data Completion
+    - Closed
+  placeholders:
+    - section: Header
+      controls: []
+    - section: Content
+      controls: []
+    - section: Actions
+      controls: []
