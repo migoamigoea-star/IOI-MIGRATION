@@ -28,15 +28,43 @@ Detailed field inventory and mapping source:
 
 ## 3. Workflow
 
-Baseline workflow stages:
-1. Draft submission by initiator
-2. Department/role validation
-3. Finalization and active record management
+### Stage Flow Diagram
 
-Power Automate flow set:
-- 1_HWInv_Network_OnSubmit
-- 1_HWInv_Network_OnReview
-- 1_HWInv_Network_OnComplete
+```
+[Stage 1: Asset Registration — Draft]
+         │ submit
+         ▼
+[Stage 2: Validation — IT Network Admin Review]
+         │ approve / return
+         ├─→ Approved: Stage 3
+         └─→ Returned: Stage 1
+         ▼
+[Stage 3: Active Inventory]
+```
+
+### Stage Matrix
+
+| Stage # | Stage Name         | Trigger                      | Actor              | Actions                                                                    | Next Stage    | Notifications                     |
+| ------- | ------------------ | ---------------------------- | ------------------ | -------------------------------------------------------------------------- | ------------- | --------------------------------- |
+| 1       | Asset Registration | New registration started     | IT Technician      | Populate MAC address, model, IP, serial number, location, purchase date    | 2             | IT Network Admin                  |
+| 2       | Validation         | Record submitted for review  | IT Network Admin   | Validate MAC/IP uniqueness, serial number, data quality; approve or return | 3 or 1        | Requestor/Initiator on return     |
+| 3       | Active Inventory   | Record approved               | System (auto)     | Finalise active inventory state; expose for reporting                      | —             | Reporting channels only           |
+
+### Trigger-Condition Matrix
+
+| Stage      | Trigger Condition                       | Required Checks                                     | Advance Path               | Return/Reject Path                          |
+| ---------- | --------------------------------------- | --------------------------------------------------- | -------------------------- | ------------------------------------------- |
+| Capture    | Item created with FormType=1_HWInv_Network | MAC, IP, model, serial number populated          | Route to validation queue  | Missing-fields notice to initiator          |
+| Validation | Item updated by IT Network Admin        | MAC uniqueness; IP conflict check; purchase date    | Mark approved; publish active record | Flag duplicate/inconsistent; return to initiator |
+| Active     | Status changed to active                | Data-quality checks pass                            | Keep active baseline       | N/A                                         |
+
+### Power Automate Flows
+
+| Flow Name                      | Trigger                       | Key Actions                                                                            |
+| ------------------------------ | ----------------------------- | -------------------------------------------------------------------------------------- |
+| `1_HWInv_Network_OnSubmit`     | Item created                  | Validate required fields; set Status=Submitted; stamp SubmittedDate; notify Network Admin |
+| `1_HWInv_Network_OnReview`     | Status updated to UnderReview | Route to IT Network Admin; stamp ReviewDate; notify reviewer                           |
+| `1_HWInv_Network_OnComplete`   | Status updated to Approved    | Set Status=Active; stamp CompletedDate; lock record; update network inventory register |
 
 ## 4. Screen Set
 
