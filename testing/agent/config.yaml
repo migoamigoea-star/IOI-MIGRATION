@@ -1,0 +1,41 @@
+# AI Test Agent — configuration
+# All secrets/credentials must be supplied via environment variables (never hard-coded here).
+
+azure_openai:
+  endpoint_env: "AZURE_OPENAI_ENDPOINT"       # env var that holds the Azure OpenAI endpoint URL
+  api_key_env: "AZURE_OPENAI_KEY"             # env var that holds the API key
+  deployment: "gpt-4o"                         # GPT-4o deployment name (override with AZURE_OPENAI_DEPLOYMENT)
+  api_version: "2024-02-01"
+  max_tokens: 4096
+  temperature: 0.1                             # low temperature → deterministic, reproducible output
+
+power_platform:
+  tenant_id_env: "POWERAPPS_TENANT_ID"
+  environment_id_env: "POWERAPPS_ENVIRONMENT_ID"
+  environment_url_env: "POWERAPPS_ENVIRONMENT_URL"
+
+test_engine:
+  output_dir: "testing/results"               # base directory for test run output
+  screenshot_dir: "screenshots"               # sub-directory within each run's output folder
+  results_filename: "testResults.json"        # name of the JSON summary file produced by the engine
+
+agent:
+  prompts_dir: "testing/agent/prompts"
+  generated_tests_suffix: "_generated_tests.yaml"  # appended to FormCode for auto-generated plans
+  report_filename: "ai_bug_report.json"
+  max_screenshots_per_run: 50                 # limit screenshots sent to Vision API (cost control)
+  screenshot_resize_max_px: 1280              # resize screenshots to this width before sending (cost control)
+
+notifications:
+  teams_webhook_env: "TEAMS_WEBHOOK_URL"      # optional; leave blank to disable
+  notify_on: ["FAIL"]                         # send Teams notification when overallStatus is in this list
+
+performance:
+  screen_load_sla_ms: 3000                    # threshold used when evaluating load-time labels
+
+# Severity → emoji mapping used in Teams / PR comment reports
+severity_emoji:
+  Critical: "🔴"
+  High: "🟠"
+  Medium: "🟡"
+  Low: "🔵"

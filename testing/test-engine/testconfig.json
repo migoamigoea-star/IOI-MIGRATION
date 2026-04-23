@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/PowerApps-TestEngine/main/src/Microsoft.PowerApps.TestEngine/testconfig.schema.json",
+  "environmentId": "${POWERAPPS_ENVIRONMENT_ID}",
+  "tenantId": "${POWERAPPS_TENANT_ID}",
+  "outputDirectory": "testing/results",
+  "screenshotOnError": true,
+  "recordVideo": false,
+  "headless": true,
+  "browser": "chromium",
+  "timeout": 30000,
+  "retryCount": 2,
+  "logLevel": "Information",
+  "users": [
+    {
+      "personaName": "User1",
+      "emailKey": "TESTENGINE_USER1_EMAIL",
+      "passwordKey": "TESTENGINE_USER1_PASSWORD"
+    },
+    {
+      "personaName": "ApproverUser",
+      "emailKey": "TESTENGINE_APPROVER_EMAIL",
+      "passwordKey": "TESTENGINE_APPROVER_PASSWORD"
+    }
+  ]
+}

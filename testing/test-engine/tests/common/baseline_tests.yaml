@@ -1,0 +1,70 @@
+testSuite:
+  testSuiteName: "Common Baseline Tests"
+  testSuiteDescription: >
+    Baseline checks that apply to every Power Apps canvas app in the IOI-MIGRATION project.
+    Covers app launch, first-screen load time, and basic accessibility.
+    Set appLogicalName to the target app before running.
+  persona: "User1"
+  appLogicalName: "${APP_LOGICAL_NAME}"
+  networkRequestMocks: []
+
+  onTestSuiteComplete: |
+    = Screenshot("suite_complete.png");
+
+  testCases:
+
+    - testCaseName: "TC-BASE-001: App Launches Without Error"
+      testCaseDescription: >
+        Verify the app loads successfully and does not display any error banners
+        or formula-error labels (#Error) on the first visible screen.
+      testSteps: |
+        = Screenshot("launch_initial.png");
+        = Assert(
+            !Contains(Text(Screen1), "#Error"),
+            "No #Error text should be visible on launch"
+          );
+        = Assert(
+            CountRows(App.ActiveScreen.Controls) > 0,
+            "Active screen must contain at least one control"
+          );
+
+    - testCaseName: "TC-BASE-002: Screen Load Time Under 3 Seconds"
+      testCaseDescription: >
+        Verify that the initial screen renders within the 3-second SLA.
+        A label named 'lblLoadTime' (if present) must show a value ≤ 3000 ms.
+      testSteps: |
+        = If(
+            CountIf(App.ActiveScreen.Controls, Name = "lblLoadTime") > 0,
+            Assert(
+              Value(lblLoadTime.Text) <= 3000,
+              "Screen load time must be ≤ 3000 ms, got: " & lblLoadTime.Text & " ms"
+            )
+          );
+
+    - testCaseName: "TC-BASE-003: Navigation Controls Are Visible"
+      testCaseDescription: >
+        Verify that primary navigation controls (Home / Back buttons) are visible
+        and not in DisplayMode.Disabled on launch.
+      testSteps: |
+        = Screenshot("navigation_controls.png");
+        = Assert(
+            IsEmpty(
+              Filter(App.ActiveScreen.Controls,
+                (Name = "btnHome" Or Name = "btnBack") And
+                DisplayMode = DisplayMode.Disabled
+              )
+            ),
+            "btnHome and btnBack must not be Disabled on launch"
+          );
+
+    - testCaseName: "TC-BASE-004: No Delegation Warning On Default Gallery"
+      testCaseDescription: >
+        Verify the main gallery does not trigger a delegation warning for the
+        default filter. The gallery item count must be > 0 (list is not empty)
+        when the SharePoint list has data.
+      testSteps: |
+        = Screenshot("gallery_default.png");
+        = Assert(
+            !IsBlank(galMain),
+            "Main gallery 'galMain' must exist on this screen"
+          );

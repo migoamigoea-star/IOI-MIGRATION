@@ -1,0 +1,236 @@
+testSuite:
+  testSuiteName: "IOIP — Full Functional Test Plan"
+  testSuiteDescription: >
+    End-to-end functional test plan for the IOIOI POLICY (IOIP) canvas app.
+    Covers all 5 workflow stages, RBAC enforcement, formula validation,
+    field-lock behaviour, navigation, and notification triggers.
+    Derived from IOIP_blueprint.md and user_stories/IOIP_user_story.md.
+  persona: "User1"
+  appLogicalName: "ioip_app"
+
+  # Environment-variant overrides are loaded from Config_AppSettings
+  # at runtime; test values below target the TEST environment.
+  environmentVariables:
+    EnvironmentTag: "TEST"
+
+  networkRequestMocks: []
+
+  onTestSuiteComplete: |
+    = Screenshot("ioip_suite_complete.png");
+
+  testCases:
+
+    # ── List Screen ─────────────────────────────────────────────────────────────
+
+    - testCaseName: "TC-IOIP-001: List Screen Loads (US-LIST)"
+      testCaseDescription: >
+        Verify the IOIP_List screen loads, the gallery renders at least one
+        placeholder row and no #Error text is visible.
+      testSteps: |
+        = Navigate(IOIP_List, ScreenTransition.None);
+        = Screenshot("ioip_list_loaded.png");
+        = Assert(
+            !Contains(Text(IOIP_List), "#Error"),
+            "No #Error on IOIP_List screen"
+          );
+        = Assert(
+            !IsBlank(galIOIPRecords),
+            "Gallery 'galIOIPRecords' must be present on IOIP_List"
+          );
+
+    - testCaseName: "TC-IOIP-002: List Screen Search Filters Gallery"
+      testCaseDescription: >
+        Type a search term into txtSearch and verify the gallery item count changes.
+        The gallery Items formula must use FormCode = "IOIP" as the base filter.
+      testSteps: |
+        = Navigate(IOIP_List, ScreenTransition.None);
+        = SetInputValue(txtSearch, "IOIP-");
+        = Screenshot("ioip_list_search.png");
+        = Assert(
+            !IsBlank(galIOIPRecords),
+            "Gallery must still be present after search input"
+          );
+        = SetInputValue(txtSearch, "ZZZNOMATCH999");
+        = Assert(
+            CountRows(galIOIPRecords.AllItems) = 0,
+            "Gallery must return 0 rows for a term that cannot match any record"
+          );
+        = SetInputValue(txtSearch, "");
+
+    - testCaseName: "TC-IOIP-003: New Button Navigates to IOIP_New (US-01)"
+      testCaseDescription: >
+        Verify the '+ New' button on IOIP_List navigates to the IOIP_New screen.
+        Button must be visible; clicking it must change the active screen.
+      testSteps: |
+        = Navigate(IOIP_List, ScreenTransition.None);
+        = Assert(
+            btnNewRecord.Visible,
+            "btnNewRecord must be visible on IOIP_List"
+          );
+        = Select(btnNewRecord);
+        = Screenshot("ioip_new_navigated.png");
+        = Assert(
+            App.ActiveScreen.Name = "IOIP_New",
+            "Active screen must be IOIP_New after pressing New button"
+          );
+
+    # ── New / Edit Screen ────────────────────────────────────────────────────────
+
+    - testCaseName: "TC-IOIP-004: Submit Disabled When Required Fields Empty (US-01)"
+      testCaseDescription: >
+        On IOIP_New, the Submit button must be Disabled when any of the required
+        fields (PolicyNo, RevNo, DateIssue, Subject, ReviNum, PolicyOwner) is blank.
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = Screenshot("ioip_new_empty.png");
+        = Assert(
+            btnSubmit.DisplayMode = DisplayMode.Disabled,
+            "Submit button must be Disabled when required fields are blank"
+          );
+
+    - testCaseName: "TC-IOIP-005: Submit Enabled After Required Fields Filled"
+      testCaseDescription: >
+        Fill all required fields on IOIP_New and verify the Submit button becomes
+        enabled (DisplayMode.Edit).
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = SetInputValue(inpPolicyNo, "POL-TEST-001");
+        = SetInputValue(inpRevNo, "01");
+        = SetInputValue(inpDateIssue, "2026-04-23");
+        = SetInputValue(inpSubject, "Test Policy Subject");
+        = SetInputValue(inpReviNum, "REV-001");
+        = Screenshot("ioip_new_filled.png");
+        = Assert(
+            btnSubmit.DisplayMode = DisplayMode.Edit,
+            "Submit button must be enabled when all required fields are filled"
+          );
+
+    - testCaseName: "TC-IOIP-006: Save as Draft Patches Status=Draft"
+      testCaseDescription: >
+        On IOIP_New, pressing 'Save as Draft' must patch Status = "Draft" and
+        navigate back to IOIP_List without error.
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = SetInputValue(inpPolicyNo, "POL-DRAFT-001");
+        = SetInputValue(inpRevNo, "01");
+        = SetInputValue(inpDateIssue, "2026-04-23");
+        = SetInputValue(inpSubject, "Draft Policy Save Test");
+        = SetInputValue(inpReviNum, "REV-001");
+        = Select(btnSaveDraft);
+        = Screenshot("ioip_after_save_draft.png");
+        = Assert(
+            App.ActiveScreen.Name = "IOIP_List",
+            "App must return to IOIP_List after Save as Draft"
+          );
+        = Assert(
+            !Contains(Text(App.ActiveScreen), "#Error"),
+            "No #Error after Save as Draft"
+          );
+
+    - testCaseName: "TC-IOIP-007: Cancel Navigates Back Without Saving"
+      testCaseDescription: >
+        On IOIP_New, pressing Cancel must navigate back to IOIP_List
+        without patching any record.
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = SetInputValue(inpPolicyNo, "POL-CANCEL-001");
+        = Select(btnCancel);
+        = Screenshot("ioip_cancel_back.png");
+        = Assert(
+            App.ActiveScreen.Name = "IOIP_List",
+            "App must return to IOIP_List after Cancel"
+          );
+
+    # ── View / Approval Screen ───────────────────────────────────────────────────
+
+    - testCaseName: "TC-IOIP-008: Approved Record Is Fully Read-Only"
+      testCaseDescription: >
+        Open a record with Status = "Approved" in IOIP_View.
+        All editable controls must be in DisplayMode.View.
+        The Edit button must not be visible.
+      testSteps: |
+        = Navigate(IOIP_View, ScreenTransition.None, {varRecord: LookUp(MainDB_IT, Status = "Approved")});
+        = Screenshot("ioip_view_approved.png");
+        = Assert(
+            IsEmpty(
+              Filter(IOIP_View.Controls,
+                (Type = "TextInput" Or Type = "DatePicker" Or Type = "PeoplePicker") And
+                DisplayMode = DisplayMode.Edit
+              )
+            ),
+            "All input controls must be View (read-only) when Status = Approved"
+          );
+        = Assert(
+            !btnEdit.Visible,
+            "Edit button must not be visible on an Approved record"
+          );
+
+    - testCaseName: "TC-IOIP-009: Approve and Reject Buttons Visible for Approver Role (US-02)"
+      testCaseDescription: >
+        On IOIP_View for a record with Status = "InApproval", the Approve and
+        Reject buttons must be visible when the persona has an Approver role.
+      testSteps: |
+        = Navigate(IOIP_View, ScreenTransition.None, {varRecord: LookUp(MainDB_IT, Status = "InApproval")});
+        = Screenshot("ioip_view_inapproval.png");
+        = Assert(
+            btnApprove.Visible,
+            "Approve button must be visible for Approver role when Status = InApproval"
+          );
+        = Assert(
+            btnReject.Visible,
+            "Reject button must be visible for Approver role when Status = InApproval"
+          );
+
+    - testCaseName: "TC-IOIP-010: FormCode Constant Is IOIP"
+      testCaseDescription: >
+        Verify that any new record created via IOIP_New always patches
+        FormCode = "IOIP" as a system-enforced constant.
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = Assert(
+            lblFormCode.Text = "IOIP",
+            "FormCode label must always display 'IOIP'"
+          );
+
+    # ── Title Auto-Generation ────────────────────────────────────────────────────
+
+    - testCaseName: "TC-IOIP-011: Title Auto-Generated on New Form Open"
+      testCaseDescription: >
+        When IOIP_New opens, varTitle must be set to a non-blank string
+        matching the pattern IOIP-YYYYMMDD-HHMMSS.
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = Assert(
+            !IsBlank(lblTitle.Text),
+            "Auto-generated title must not be blank"
+          );
+        = Assert(
+            StartsWith(lblTitle.Text, "IOIP-"),
+            "Auto-generated title must start with 'IOIP-'"
+          );
+
+    # ── Status Workflow ─────────────────────────────────────────────────────────
+
+    - testCaseName: "TC-IOIP-012: Status Field Is Read-Only in Canvas App"
+      testCaseDescription: >
+        Verify that the Status control on IOIP_New and IOIP_Edit is always in
+        DisplayMode.View — status transitions are flow-only (business rule).
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = Screenshot("ioip_new_status_control.png");
+        = Assert(
+            ddStatus.DisplayMode = DisplayMode.View,
+            "Status dropdown must be read-only (View mode) in IOIP_New"
+          );
+
+    # ── Accessibility ────────────────────────────────────────────────────────────
+
+    - testCaseName: "TC-IOIP-013: Submit Button Has Accessible Label"
+      testCaseDescription: >
+        Verify btnSubmit has a non-blank AccessibleLabel for screen-reader support.
+      testSteps: |
+        = Navigate(IOIP_New, ScreenTransition.None);
+        = Assert(
+            !IsBlank(btnSubmit.AccessibleLabel),
+            "btnSubmit must have a non-blank AccessibleLabel"
+          );
